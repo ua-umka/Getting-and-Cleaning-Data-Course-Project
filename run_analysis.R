@@ -1,46 +1,46 @@
-setwd("C:\\Users\\a\\Desktop\\DS\\Getting & Cleaning Data\\Practise")
+setwd("C:\\Users\\a\\Desktop\\DS\\getting-n-cleaning-data\\Practise")
 install.packages("downloader")
-install.packages("plyr") #for join
-install.packages("dplyr")
+install.packages("plyr") # for join
+install.packages("dplyr") # group_by function
 library("downloader")
 library("plyr")
-library("dplyr") # group_by function
+library("dplyr")
 
 if (!file.exists("WearableData")) {
       url <- "https://d396qusza40orc.cloudfront.net/getdata%2Fprojectfiles%2FUCI%20HAR%20Dataset.zip"
       download(url, dest="WearableData.zip", mode="wb") 
-      unzip ("WearableData.zip", exdir = "C:\\Users\\a\\Desktop\\DS\\Getting & Cleaning Data\\Practise\\WearableData")
+      unzip ("WearableData.zip", exdir = "C:\\Users\\a\\Desktop\\DS\\getting-n-cleaning-data\\Practise\\WearableData")
 }
-setwd("C:\\Users\\a\\Desktop\\DS\\Getting & Cleaning Data\\Practise\\WearableData\\UCI HAR Dataset")
+setwd("C:\\Users\\a\\Desktop\\DS\\getting-n-cleaning-data\\Practise\\WearableData\\UCI HAR Dataset")
 
-Train_Labels <- read.table("train//y_train.txt", sep="\t")
+Training_Subject <- read.table("train//subject_train.txt")
+Train_Labels <- read.table("train//y_train.txt")
 Training_Set <- read.table("train//X_train.txt")
-Training_Subject <- read.table("train//subject_train.txt", sep="\t")
 
-train <- cbind(Training_Subject, Train_Labels, Training_Set)
+#train <- cbind(Training_Subject, Train_Labels, Training_Set)
 
-
-Test_Labels <- read.table("test//y_test.txt", sep="\t")
+Testing_Subject <- read.table("test//subject_test.txt")
+Test_Labels <- read.table("test//y_test.txt")
 Testing_Set <- read.table("test//X_test.txt")
-Testing_Subject <- read.table("test//subject_test.txt", sep="\t")
 
-test <- cbind(Testing_Subject, Test_Labels, Testing_Set)
+#test <- cbind(Testing_Subject, Test_Labels, Testing_Set)
 
 # Merges the training and the test sets to create one data set
-data <- rbind(train,test)
+Merged_Set <- rbind(Training_Set, Testing_Set)
+Merged_Labels <- rbind(Train_Labels, Test_Labels)
+Merged_Subject <- rbind(Training_Subject, Testing_Subject)
+stopifnot(length(Merged_Set) == length(Merged_Labels), length(Merged_Labels) == length(Merged_Subject))
 
 # 2
 # Extracts only the measurements on the mean and standard deviation for each measurement
 features <- read.table("features.txt")
-SubData <- data[grep("mean|std", features$V2) + 2]
-SubData <- cbind(data[1], data[2], SubData)
+SubData <- Merged_Set[grep("mean|std", features$V2)]
 
 #3 Uses descriptive activity names to name the activities in the data set
-names(SubData) <- c(grep("mean|std", features$V2, value = TRUE))
 Activity_Names <- read.table("activity_labels.txt")
+LabelsWithNames <- join(Merged_Labels, Activity_Names)
 
-a <- join(data[2], Activity_Names)
-SubData[2] <- a[2]
+SubData <- cbind(Merged_Subject, LabelsWithNames[2], SubData)
 
 # 4 Appropriately labels the data set with descriptive variable names
 names <- c(grep("mean|std", features$V2, value = TRUE))
@@ -49,22 +49,11 @@ names <- sub("^t", "Time", names)
 names <- c(c("Subject", "Activity"), names)
 colnames(SubData) <- names
 
-# 5 From the data set in step 4, creates a second, independent tidy data set with the average of each variable 
-# for each activity and each subject
-"""
-#  note that .SDcols also allows reordering of the columns
-dt[, lapply(.SD, sum, na.rm=TRUE), by=category, .SDcols=c('a', 'c', 'z') ] 
-e.dt[, lapply(.SD, mean), by = list(SiteNo, Group)]
-
-TidyData %>% group_by(Subject) %>% group_by(Activity) %>% summarize_each(funs(mean, mean), Subject, Activity)
-
-TidyData[, lapply(TidyData, mean) by = list('Subject')]
-
-"""
+# 5 From the data set in step 4, creates a second, independent tidy data set with the average of each 
+# variable for each activity and each subject
 by1 <- factor(SubData$Subject)
 by2 <- factor(SubData$Activity)
-TidyData <-aggregate(x = SubData, by=list(by1, by2), FUN="mean")
-TidyData <- TidyData[, !names(TidyData) %in% c("Subject", "Activity")]
+TidyData <- aggregate(x = SubData[,3:81], by=list(by1, by2), FUN="mean")
 colnames(TidyData) <- names
 
 write.table(TidyData, "TidyData.txt", row.names = FALSE)
